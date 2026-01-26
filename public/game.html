@@ -1099,7 +1099,7 @@
     <div class="health-bar-outer">
       <div class="health-bar-inner" id="hades-health-fill" style="width: 100%;"></div>
     </div>
-    <div class="health-text"><span id="hades-health-text">100</span> / 100</div>
+    <div class="health-text"><span id="hades-health-text">300</span> / 300</div>
   </div>
 
   <!-- Throne Sit Button -->
@@ -1286,140 +1286,119 @@
     let soundVolume = 0.5;
     let musicVolume = 0.5;
     let sfxVolume = 0.5;
-    let currentBgSound = null;
-    let currentBgOscillators = [];
+    let currentBgAudio = null;
+    let deathSound = null;
     let isPaused = false;
     let skeletonWarriors = [];
     let playerCurrentHealth = 100; // Health for current life
 
-    // Create rich ambient soundscapes
-    function createAmbientSoundscape(type) {
-      if (!audioCtx) return null;
-      
-      const oscillators = [];
-      const masterGain = audioCtx.createGain();
-      masterGain.connect(audioCtx.destination);
-      masterGain.gain.value = 0;
+    // Audio file paths
+    const audioFiles = {
+      nature: '/audio/nature-birds.wav',      // Nature zone
+      olympus: '/audio/heavenly-music.mp3',   // Staircase and castle
+      staircase: '/audio/heavenly-music.mp3', // Staircase
+      underworld: '/audio/underworld-ominous.wav', // Underworld (except puzzle/cerberus)
+      styx: '/audio/underworld-ominous.wav',  // River Styx
+      battle: '/audio/underworld-ominous.wav', // Boss battle uses ominous guitar
+      death: '/audio/death-bruh.mp3',         // Death sound
+      mortal: '/audio/nature-birds.wav'       // Nature zone default
+    };
 
-      function addOscillator(freq, waveType, gainVal, detuneVal = 0) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = waveType;
-        osc.frequency.value = freq;
-        osc.detune.value = detuneVal;
-        osc.connect(gain);
-        gain.connect(masterGain);
-        gain.gain.value = gainVal;
-        osc.start();
-        oscillators.push({ osc, gain });
+    // Preload death sound
+    function preloadDeathSound() {
+      deathSound = new Audio(audioFiles.death);
+      deathSound.preload = 'auto';
+    }
+
+    function playDeathSound() {
+      if (deathSound) {
+        deathSound.currentTime = 0;
+        deathSound.volume = soundVolume * sfxVolume;
+        deathSound.play().catch(e => console.log('Death sound failed:', e));
       }
-
-      switch(type) {
-        case 'nature':
-          // Birds chirping simulation + wind
-          addOscillator(2000, 'sine', 0.03);
-          addOscillator(2400, 'sine', 0.02, 50);
-          addOscillator(1800, 'sine', 0.02, -30);
-          // Wind sound (low frequency noise-like)
-          addOscillator(80, 'triangle', 0.08);
-          addOscillator(120, 'triangle', 0.05, 10);
-          // Gentle pad
-          addOscillator(220, 'sine', 0.04);
-          addOscillator(330, 'sine', 0.03);
-          break;
-          
-        case 'olympus':
-          // Heavenly choir-like pads
-          addOscillator(440, 'sine', 0.06);
-          addOscillator(554, 'sine', 0.04); // Major third
-          addOscillator(659, 'sine', 0.03); // Fifth
-          addOscillator(880, 'sine', 0.02);
-          // Ethereal shimmer
-          addOscillator(1760, 'sine', 0.01, 5);
-          addOscillator(2200, 'sine', 0.008, -5);
-          break;
-          
-        case 'underworld':
-          // Deep menacing drones
-          addOscillator(40, 'sawtooth', 0.12);
-          addOscillator(55, 'sawtooth', 0.08, 3);
-          addOscillator(82.5, 'triangle', 0.06);
-          // Dissonant high whispers
-          addOscillator(666, 'sine', 0.02);
-          addOscillator(700, 'sine', 0.015, -10);
-          // Rumbling bass
-          addOscillator(30, 'sine', 0.1);
-          break;
-          
-        case 'styx':
-          // Watery, eerie atmosphere
-          addOscillator(100, 'triangle', 0.08);
-          addOscillator(150, 'sine', 0.05, 7);
-          addOscillator(60, 'sawtooth', 0.06);
-          // Ghostly wails
-          addOscillator(400, 'sine', 0.02);
-          addOscillator(450, 'sine', 0.015, -15);
-          break;
-          
-        case 'battle':
-          // INTENSE boss battle music
-          // Heavy bass drums simulation
-          addOscillator(60, 'square', 0.15);
-          addOscillator(80, 'sawtooth', 0.12);
-          // Tension chords
-          addOscillator(110, 'sawtooth', 0.1);
-          addOscillator(138.6, 'sawtooth', 0.08); // Minor third
-          addOscillator(165, 'triangle', 0.06);
-          // High intensity
-          addOscillator(220, 'square', 0.05);
-          addOscillator(330, 'sawtooth', 0.04);
-          // Aggressive pulse
-          addOscillator(55, 'square', 0.1);
-          break;
-          
-        case 'mortal':
-        default:
-          // Peaceful meadow atmosphere
-          addOscillator(200, 'sine', 0.04);
-          addOscillator(267, 'sine', 0.03);
-          addOscillator(300, 'sine', 0.025);
-          // Soft wind
-          addOscillator(100, 'triangle', 0.04);
-          break;
-      }
-
-      return { oscillators, masterGain };
     }
 
     function playBackgroundSound(sceneType) {
       stopBackgroundSound();
-      if (!audioCtx) return;
       
-      currentBgSound = createAmbientSoundscape(sceneType);
+      const audioFile = audioFiles[sceneType] || audioFiles.mortal;
       
-      if (currentBgSound && !isPaused) {
-        currentBgSound.masterGain.gain.linearRampToValueAtTime(
-          soundVolume * musicVolume * 0.25, 
-          audioCtx.currentTime + 2
-        );
+      currentBgAudio = new Audio(audioFile);
+      currentBgAudio.loop = true;
+      currentBgAudio.volume = soundVolume * musicVolume;
+      
+      if (!isPaused) {
+        currentBgAudio.play().catch(e => console.log('Audio play failed:', e));
       }
     }
 
     function stopBackgroundSound() {
-      if (currentBgSound) {
-        try {
-          currentBgSound.masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-          setTimeout(() => {
-            if (currentBgSound && currentBgSound.oscillators) {
-              currentBgSound.oscillators.forEach(o => {
-                try { o.osc.stop(); } catch(e) {}
-              });
-            }
-          }, 600);
-        } catch(e) {}
+      if (currentBgAudio) {
+        currentBgAudio.pause();
+        currentBgAudio.currentTime = 0;
+        currentBgAudio = null;
       }
-      currentBgSound = null;
     }
+
+    function updateMusicVolume() {
+      if (currentBgAudio) {
+        currentBgAudio.volume = soundVolume * musicVolume;
+      }
+    }
+
+    // Pause menu volume controls
+    document.getElementById('master-volume').addEventListener('input', (e) => {
+      soundVolume = e.target.value / 100;
+      document.getElementById('volume-value').textContent = e.target.value;
+      updateMusicVolume();
+    });
+
+    document.getElementById('music-volume').addEventListener('input', (e) => {
+      musicVolume = e.target.value / 100;
+      document.getElementById('music-value').textContent = e.target.value;
+      updateMusicVolume();
+    });
+
+    document.getElementById('sfx-volume').addEventListener('input', (e) => {
+      sfxVolume = e.target.value / 100;
+      document.getElementById('sfx-value').textContent = e.target.value;
+    });
+
+    // Pause button handler
+    document.getElementById('pause-button').addEventListener('click', () => {
+      togglePause();
+    });
+
+    document.getElementById('resume-btn').addEventListener('click', () => {
+      togglePause();
+    });
+
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      location.reload();
+    });
+
+    document.getElementById('home-btn').addEventListener('click', () => {
+      location.reload();
+    });
+
+    function togglePause() {
+      isPaused = !isPaused;
+      document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none';
+      
+      if (isPaused) {
+        if (currentBgAudio) currentBgAudio.pause();
+        if (document.pointerLockElement) document.exitPointerLock();
+      } else {
+        if (currentBgAudio) currentBgAudio.play().catch(e => {});
+      }
+    }
+
+    // ESC key to pause
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && gameState === 'playing') {
+        togglePause();
+      }
+    });
     
     // ============ THREE.JS SETUP ============
     const container = document.getElementById('game-container');
@@ -3026,11 +3005,11 @@
       scene.add(throne);
       sceneObjects.push(throne);
       
-      // Hades himself
+      // Hades himself - MUCH harder boss
       const hades = createHades();
       hades.position.set(0, 0, -5);
       hades.userData.isHades = true;
-      hades.userData.health = 100;
+      hades.userData.health = 300; // Increased from 100 to 300
       scene.add(hades);
       sceneObjects.push(hades);
       enemies.push(hades);
@@ -3045,7 +3024,7 @@
       }
       
       isInBattle = true;
-      hadesHealth = 100;
+      hadesHealth = 300; // Increased from 100 to 300
       document.getElementById('health-bar').style.display = 'flex';
       
       playerPos.set(0, 1.7, 10);
@@ -3377,6 +3356,7 @@
     // ============ GAME SEQUENCE ============
     function startGame() {
       initAudio();
+      preloadDeathSound(); // Preload death/bruh sound
       gameState = 'playing';
       currentScene = 'mortal';
       
@@ -3415,66 +3395,7 @@
       }, 1000);
     }
 
-    // ENHANCEMENT: Pause menu handlers
-    function togglePause() {
-      if (gameState !== 'playing') return;
-      
-      isPaused = !isPaused;
-      document.getElementById('pause-menu').style.display = isPaused ? 'flex' : 'none';
-      
-      if (isPaused) {
-        if (currentBgSound && currentBgSound.gain) {
-          currentBgSound.gain.gain.value = soundVolume * musicVolume * 0.05;
-        }
-      } else {
-        if (currentBgSound && currentBgSound.gain) {
-          currentBgSound.gain.gain.value = soundVolume * musicVolume * 0.15;
-        }
-      }
-    }
-
-    document.getElementById('master-volume').addEventListener('input', (e) => {
-      soundVolume = e.target.value / 100;
-      document.getElementById('volume-value').textContent = e.target.value;
-      if (currentBgSound && currentBgSound.gain) {
-        currentBgSound.gain.gain.value = soundVolume * musicVolume * 0.15;
-      }
-    });
-
-    document.getElementById('music-volume').addEventListener('input', (e) => {
-      musicVolume = e.target.value / 100;
-      document.getElementById('music-value').textContent = e.target.value;
-      if (currentBgSound && currentBgSound.gain) {
-        currentBgSound.gain.gain.value = soundVolume * musicVolume * 0.15;
-      }
-    });
-
-    document.getElementById('sfx-volume').addEventListener('input', (e) => {
-      sfxVolume = e.target.value / 100;
-      document.getElementById('sfx-value').textContent = e.target.value;
-    });
-
-    document.getElementById('pause-button').addEventListener('click', togglePause);
-    document.getElementById('resume-btn').addEventListener('click', togglePause);
-
-    document.getElementById('restart-btn').addEventListener('click', () => {
-      if (confirm('Restart the game? All progress will be lost.')) {
-        location.reload();
-      }
-    });
-
-    document.getElementById('home-btn').addEventListener('click', () => {
-      if (confirm('Return to main menu? All progress will be lost.')) {
-        location.reload();
-      }
-    });
-
-    // ESC key to pause
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && gameState === 'playing') {
-        togglePause();
-      }
-    });
+    // Note: Pause menu handlers moved to top with audio system
     
     function enterStaircase() {
       fadeToWhite(() => {
@@ -3611,6 +3532,9 @@
         yaw = Math.PI;
         canMove = true;
         
+        // Play heavenly music for staircase
+        playBackgroundSound('staircase');
+        
         showNarration("The staircase stretches endlessly upward...");
         showNarration("As I climb, the world below begins to fade away into mist.");
         showNarration("I can see a fortress in the distance, shrouded in clouds.");
@@ -3622,6 +3546,9 @@
         currentScene = 'fortress';
         createFortressGates();
         canMove = true;
+        
+        // Continue heavenly music in fortress/castle
+        playBackgroundSound('olympus');
         
         showNarration("A massive fortress emerges from the clouds before me.");
         showNarration("Two imposing guardians stand at the gate, their staffs crossed over the entrance.");
@@ -4590,35 +4517,76 @@ function switchToPerseus() {
       if (!isInBattle || hadesHealth <= 0) return;
       
       const attackType = Math.random();
+      const hadesEntity = enemies.find(e => e.userData.isHades);
       
-      if (attackType < 0.4 && skeletonWarriors.length < 3) {
-        // Spawn skeleton warrior
-        showNarration("Hades summons a skeleton warrior!", "");
-        spawnSkeletonWarrior();
-      } else {
+      // More aggressive skeleton spawning - up to 5 at once
+      if (attackType < 0.5 && skeletonWarriors.length < 5) {
+        // Spawn 1-2 skeleton warriors
+        const numToSpawn = Math.random() < 0.3 ? 2 : 1;
+        for (let i = 0; i < numToSpawn && skeletonWarriors.length < 5; i++) {
+          const skeleton = spawnSkeletonWarrior();
+          if (skeleton) {
+            console.log('Spawned skeleton warrior, total:', skeletonWarriors.length);
+          }
+        }
+        showNarration("Hades summons skeleton warriors!", "");
+      } else if (attackType < 0.75) {
         // Dark beam attack
-        if (enemies[0] && enemies[0].userData.isHades) {
-          const dir = playerPos.clone().sub(enemies[0].position).normalize();
+        if (hadesEntity) {
           const beam = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.3, 0.3, 12, 8),
+            new THREE.CylinderGeometry(0.4, 0.4, 15, 8),
             new THREE.MeshBasicMaterial({ color: 0x8800ff, transparent: true, opacity: 0.8 })
           );
-          beam.position.copy(enemies[0].position);
+          beam.position.copy(hadesEntity.position);
           beam.position.y += 3;
           beam.lookAt(playerPos);
           beam.rotateX(Math.PI / 2);
           scene.add(beam);
           sceneObjects.push(beam);
           
-          // Check if hit player
-          const dist = playerPos.distanceTo(enemies[0].position);
-          if (dist < 10) {
-            takeDamage(25);
+          // Check if hit player - harder to dodge
+          const dist = playerPos.distanceTo(hadesEntity.position);
+          if (dist < 12) {
+            takeDamage(30); // Increased damage
           }
           
           setTimeout(() => {
             scene.remove(beam);
-          }, 500);
+            sceneObjects = sceneObjects.filter(o => o !== beam);
+          }, 400);
+        }
+      } else {
+        // Ground slam attack - damages player if too close
+        if (hadesEntity) {
+          const slam = new THREE.Mesh(
+            new THREE.RingGeometry(0.5, 8, 32),
+            new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+          );
+          slam.rotation.x = -Math.PI / 2;
+          slam.position.copy(hadesEntity.position);
+          slam.position.y = 0.1;
+          scene.add(slam);
+          sceneObjects.push(slam);
+          
+          const dist = playerPos.distanceTo(hadesEntity.position);
+          if (dist < 8) {
+            takeDamage(35); // Heavy damage for close range
+          }
+          
+          // Expand and fade
+          let scale = 1;
+          const slamInterval = setInterval(() => {
+            scale += 0.3;
+            slam.scale.setScalar(scale);
+            slam.material.opacity -= 0.05;
+            if (slam.material.opacity <= 0) {
+              clearInterval(slamInterval);
+              scene.remove(slam);
+              sceneObjects = sceneObjects.filter(o => o !== slam);
+            }
+          }, 50);
+          
+          showNarration("Hades slams the ground!", "");
         }
       }
     }
@@ -4640,6 +4608,9 @@ function switchToPerseus() {
         // Lost one life
         lives--;
         playerCurrentHealth = 100;
+        
+        // Play death/bruh sound when losing a life
+        playDeathSound();
       }
       
       updatePlayerLivesUI();
@@ -4650,12 +4621,16 @@ function switchToPerseus() {
     }
     
     function gameOver() {
+      // Play death sound on game over
+      playDeathSound();
+      
       // Reset boss fight
       lives = 3;
       playerCurrentHealth = 100;
-      hadesHealth = 100;
-      if (enemies[0] && enemies[0].userData.isHades) {
-        enemies[0].userData.health = 100;
+      hadesHealth = 300; // Match increased HP
+      const hadesEntity = enemies.find(e => e.userData.isHades);
+      if (hadesEntity) {
+        hadesEntity.userData.health = 300;
       }
       
       // Remove all skeletons
@@ -4783,7 +4758,8 @@ function switchToPerseus() {
     function updateHadesHealthUI() {
       const healthFill = document.getElementById('hades-health-fill');
       const healthText = document.getElementById('hades-health-text');
-      if (healthFill) healthFill.style.width = hadesHealth + '%';
+      const maxHealth = 300;
+      if (healthFill) healthFill.style.width = (hadesHealth / maxHealth * 100) + '%';
       if (healthText) healthText.textContent = Math.max(0, Math.round(hadesHealth));
     }
     
@@ -5205,10 +5181,11 @@ function switchToPerseus() {
       camera.rotation.y = yaw;
       camera.rotation.x = pitch;
       
-      // Hades and Skeleton AI
+      // Hades and Skeleton AI - faster attack rate
       if (isInBattle && enemies.length > 0 && hadesHealth > 0) {
         hadesAttackTimer += delta;
-        if (hadesAttackTimer > 2.5) {
+        // Faster attacks - every 1.5 seconds instead of 2.5
+        if (hadesAttackTimer > 1.5) {
           hadesAttackTimer = 0;
           hadesAttack();
         }
