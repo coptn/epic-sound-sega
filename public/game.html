@@ -5505,13 +5505,19 @@ function switchToPerseus() {
     }
     
     function beginGame() {
-      document.getElementById('title-screen').style.display = 'none';
-      
-      if (isMobile) {
-        document.getElementById('mobile-controls').style.display = 'block';
+      console.log('BEGIN GAME CLICKED');
+      try {
+        document.getElementById('title-screen').style.display = 'none';
+        
+        if (isMobile) {
+          document.getElementById('mobile-controls').style.display = 'block';
+        }
+        
+        startGame();
+      } catch (error) {
+        console.error('Error starting game:', error);
+        alert('Error starting game: ' + error.message);
       }
-      
-      startGame();
     }
     
     // Add both click and touch handlers
