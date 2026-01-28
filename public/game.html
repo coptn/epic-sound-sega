@@ -457,6 +457,122 @@
       transform: translateX(-50%) scale(1.05);
       box-shadow: 0 0 50px rgba(255, 0, 255, 0.8);
     }
+
+    /* Portal Password UI */
+    #portal-password-ui {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(ellipse at center, rgba(136, 0, 255, 0.95) 0%, rgba(20, 0, 40, 0.98) 100%);
+      border: 4px solid #ff00ff;
+      border-radius: 25px;
+      padding: 40px 50px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      z-index: 500;
+      box-shadow: 0 0 60px rgba(255, 0, 255, 0.8), inset 0 0 40px rgba(136, 0, 255, 0.3);
+      animation: portalPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes portalPulse {
+      0%, 100% { box-shadow: 0 0 60px rgba(255, 0, 255, 0.8), inset 0 0 40px rgba(136, 0, 255, 0.3); }
+      50% { box-shadow: 0 0 100px rgba(255, 0, 255, 1), inset 0 0 60px rgba(136, 0, 255, 0.5); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translate(-50%, -50%); }
+      10%, 30%, 50%, 70%, 90% { transform: translate(-52%, -50%); }
+      20%, 40%, 60%, 80% { transform: translate(-48%, -50%); }
+    }
+
+    #portal-password-ui h2 {
+      font-family: 'Cinzel', serif;
+      color: #ff00ff;
+      font-size: 1.8rem;
+      text-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    #portal-password-ui p {
+      color: #d4a8ff;
+      font-size: 1.1rem;
+      font-style: italic;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    #portal-password-input {
+      width: 150px;
+      padding: 15px;
+      font-family: 'Cinzel', serif;
+      font-size: 2rem;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.6);
+      border: 3px solid #aa00ff;
+      border-radius: 12px;
+      color: #fff;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
+      outline: none;
+    }
+
+    #portal-password-input:focus {
+      border-color: #ff00ff;
+      box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+    }
+
+    #portal-password-input::placeholder {
+      color: #666;
+      letter-spacing: 0;
+    }
+
+    .portal-btn-row {
+      display: flex;
+      gap: 15px;
+    }
+
+    .portal-btn {
+      padding: 12px 30px;
+      font-family: 'Cinzel', serif;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .portal-btn.enter {
+      background: linear-gradient(135deg, #8800ff, #ff00ff);
+      color: #fff;
+      border: 2px solid #ff00ff;
+    }
+
+    .portal-btn.enter:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 25px rgba(255, 0, 255, 0.7);
+    }
+
+    .portal-btn.cancel {
+      background: rgba(50, 50, 50, 0.8);
+      color: #aaa;
+      border: 2px solid #555;
+    }
+
+    .portal-btn.cancel:hover {
+      background: rgba(80, 50, 50, 0.8);
+      border-color: #aa5555;
+    }
+
+    #portal-error {
+      color: #ff4444;
+      font-size: 0.9rem;
+      margin-top: 15px;
+      min-height: 20px;
+      text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+    }
     
     /* Body Switch Menu */
     #body-switch-menu {
@@ -1132,6 +1248,18 @@
     <div class="health-text"><span id="hades-health-text">300</span> / 300</div>
   </div>
 
+  <!-- Portal Password UI -->
+  <div id="portal-password-ui">
+    <h2>🌀 THE PORTAL SPEAKS 🌀</h2>
+    <p>"Speak the sacred number to enter<br>the realm of the dead..."</p>
+    <input type="text" id="portal-password-input" maxlength="4" placeholder="???" autocomplete="off">
+    <div class="portal-btn-row">
+      <button class="portal-btn enter" id="portal-submit-btn">⚡ ENTER ⚡</button>
+      <button class="portal-btn cancel" id="portal-cancel-btn">← RETREAT</button>
+    </div>
+    <div id="portal-error"></div>
+  </div>
+
   <!-- Throne Sit Button -->
   <button id="throne-sit-btn">👑 SIT ON THE THRONE 👑</button>
 
@@ -1431,9 +1559,94 @@
       }
     }
 
-    // ESC key to pause
+    // ============ PORTAL PASSWORD UI ============
+    let portalPasswordActive = false;
+    let savedCanMove = false;
+    let savedCanLook = false;
+
+    function showPortalPasswordUI() {
+      portalPasswordActive = true;
+      savedCanMove = canMove;
+      savedCanLook = canLook;
+      canMove = false;
+      canLook = false;
+      
+      // Exit pointer lock on PC
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+      
+      const ui = document.getElementById('portal-password-ui');
+      const input = document.getElementById('portal-password-input');
+      const error = document.getElementById('portal-error');
+      
+      ui.style.display = 'flex';
+      input.value = '';
+      error.textContent = '';
+      
+      // Focus input after a short delay
+      setTimeout(() => input.focus(), 100);
+    }
+
+    function hidePortalPasswordUI() {
+      portalPasswordActive = false;
+      canMove = savedCanMove;
+      canLook = savedCanLook;
+      
+      document.getElementById('portal-password-ui').style.display = 'none';
+    }
+
+    function submitPortalPassword() {
+      const input = document.getElementById('portal-password-input');
+      const error = document.getElementById('portal-error');
+      const password = input.value.trim();
+      
+      if (password === "67") {
+        hidePortalPasswordUI();
+        showNarration("The portal accepts your offering...");
+        showNarration("This leads directly to the throne of Hades!");
+        setTimeout(() => {
+          enterHadesBattle();
+          sceneTransitioning = false;
+        }, 2000);
+      } else {
+        error.textContent = "⚠️ The portal rejects you... Incorrect number.";
+        input.value = '';
+        input.focus();
+        
+        // Shake animation
+        const ui = document.getElementById('portal-password-ui');
+        ui.style.animation = 'none';
+        ui.offsetHeight; // Trigger reflow
+        ui.style.animation = 'shake 0.5s ease-out, portalPulse 2s ease-in-out infinite';
+      }
+    }
+
+    function cancelPortalPassword() {
+      hidePortalPasswordUI();
+      sceneTransitioning = false;
+      // Push player back slightly
+      playerPos.z -= 3;
+      showNarration("I step back from the portal...");
+    }
+
+    // Portal password event handlers
+    document.getElementById('portal-submit-btn').addEventListener('click', submitPortalPassword);
+    document.getElementById('portal-cancel-btn').addEventListener('click', cancelPortalPassword);
+    
+    document.getElementById('portal-password-input').addEventListener('keydown', (e) => {
+      if (e.code === 'Enter') {
+        e.preventDefault();
+        submitPortalPassword();
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        cancelPortalPassword();
+      }
+    });
+
+    // ESC key to pause (but not when password UI is active)
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && gameState === 'playing') {
+      if (e.code === 'Escape' && gameState === 'playing' && !portalPasswordActive) {
         togglePause();
       }
     });
@@ -3503,6 +3716,11 @@
       yaw = Math.PI;  // Face toward negative Z (staircase)
       pitch = 0;
       
+      // Apply camera rotation immediately so player sees correct direction on first frame
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+      
       // Create player hands
       camera.children.slice().forEach(child => {
         if (child.userData?.isPlayerHands) {
@@ -5215,29 +5433,13 @@ function switchToPerseus() {
       if (sceneTransitioning) return;
       
       // Mortal realm -> Boss portal (automatic teleport when stepping under portal)
-      // Portal is at z=20, player stepping close triggers auto-teleport with password
+      // Portal is at z=20, player stepping close triggers password UI
       if (currentScene === 'mortal') {
         const portalPos = new THREE.Vector3(0, 1.7, 20);
         const portalDist = playerPos.distanceTo(portalPos);
         if (portalDist < 4) { // Auto-trigger when close to portal
           sceneTransitioning = true;
-          
-          // Prompt for password
-          const password = prompt("The portal whispers: 'Speak the sacred number to enter the realm of the dead...'");
-          
-          if (password === "67") {
-            showNarration("The portal accepts your offering...");
-            showNarration("This leads directly to the throne of Hades!");
-            setTimeout(() => {
-              enterHadesBattle();
-              sceneTransitioning = false;
-            }, 2000);
-          } else {
-            showNarration("The portal rejects you... The number was incorrect.");
-            sceneTransitioning = false;
-            // Push player back slightly
-            playerPos.z -= 3;
-          }
+          showPortalPasswordUI();
           return;
         }
       }
