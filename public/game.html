@@ -401,6 +401,79 @@
       margin-top: 5px;
     }
 
+    /* Boss Intro Overlay */
+    #boss-intro-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2500;
+      pointer-events: auto;
+    }
+
+    .boss-intro-content {
+      text-align: center;
+      max-width: 600px;
+      padding: 40px;
+      background: radial-gradient(ellipse at center, rgba(136, 0, 255, 0.3) 0%, rgba(0, 0, 0, 0.9) 100%);
+      border: 4px solid #ff00ff;
+      border-radius: 25px;
+      box-shadow: 0 0 80px rgba(255, 0, 255, 0.6);
+      position: relative;
+    }
+
+    .boss-intro-content h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 2.5rem;
+      color: #ff00ff;
+      text-shadow: 0 0 30px rgba(255, 0, 255, 0.8);
+      margin-bottom: 20px;
+    }
+
+    .boss-intro-text {
+      font-family: 'Philosopher', serif;
+      font-size: 1.3rem;
+      color: #d4a8ff;
+      margin-bottom: 15px;
+    }
+
+    .boss-intro-instruction {
+      font-family: 'Philosopher', serif;
+      font-size: 1.5rem;
+      color: #ffd700;
+      text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+      margin-bottom: 30px;
+    }
+
+    .boss-intro-instruction strong {
+      color: #ff00ff;
+      font-size: 1.7rem;
+    }
+
+    .boss-intro-close {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #cc0000, #880000);
+      border: 4px solid #ff4444;
+      color: #fff;
+      font-size: 2.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+      transition: all 0.3s;
+    }
+
+    .boss-intro-close:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 50px rgba(255, 0, 0, 0.9);
+    }
+
     /* Victory Screen */
     #victory-screen {
       position: fixed;
@@ -1289,12 +1362,23 @@
   <div id="portal-password-ui">
     <h2>🌀 THE PORTAL SPEAKS 🌀</h2>
     <p>"Speak the sacred number to enter<br>the realm of the dead..."</p>
+    <p style="color: #ff00ff; font-weight: bold; margin-bottom: 15px; font-size: 1.2rem;">Type your 2 favorite #s</p>
     <input type="text" id="portal-password-input" maxlength="4" placeholder="???" autocomplete="off">
     <div class="portal-btn-row">
       <button class="portal-btn enter" id="portal-submit-btn">⚡ ENTER ⚡</button>
       <button class="portal-btn cancel" id="portal-cancel-btn">← RETREAT</button>
     </div>
     <div id="portal-error"></div>
+  </div>
+
+  <!-- Boss Intro Overlay -->
+  <div id="boss-intro-overlay">
+    <div class="boss-intro-content">
+      <h1>⚔️ BATTLE FOR THE UNDERWORLD ⚔️</h1>
+      <p class="boss-intro-text">You stand before Hades, Lord of the Dead.</p>
+      <p class="boss-intro-instruction">Click <strong>E</strong> or the <strong>⚡ Fight Button</strong> to deal damage!</p>
+      <button class="boss-intro-close" id="boss-intro-close-btn">✕</button>
+    </div>
   </div>
 
   <!-- Throne Sit Button -->
@@ -1718,7 +1802,10 @@
       const password = input.value.trim();
       
       if (password === "67") {
-        hidePortalPasswordUI();
+        // Immediately hide the UI and set flag BEFORE any async operations
+        document.getElementById('portal-password-ui').style.display = 'none';
+        portalPasswordActive = false;
+        
         showNarration("The portal accepts your offering...");
         showNarration("This leads directly to the throne of Hades!");
         setTimeout(() => {
@@ -4739,18 +4826,47 @@ function switchToPerseus() {
         updatePlayerLivesUI();
         updateHadesHealthUI();
         
-        // IMPORTANT: Set battle state immediately, don't wait for narration
-        isInBattle = true;
-        canAttack = true;
-        canMove = true;
-        
-        console.log('Battle started! isInBattle:', isInBattle, 'enemies:', enemies.length, 'canAttack:', canAttack);
-        
-        showNarration("The dark portal transports me to the throne of the underworld...");
-        showNarration("Everything I've done has been for this moment.");
-        showNarration("HADES! YOUR REIGN OF TERROR ENDS NOW!", "Aeneas");
+        // Show boss intro overlay - pause game until dismissed
+        showBossIntroOverlay();
       });
     }
+    
+    function showBossIntroOverlay() {
+      const overlay = document.getElementById('boss-intro-overlay');
+      overlay.style.display = 'flex';
+      
+      // Pause game during intro
+      canMove = false;
+      canLook = false;
+      canAttack = false;
+      isInBattle = false;
+      
+      // Exit pointer lock on PC
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    }
+    
+    function closeBossIntroOverlay() {
+      const overlay = document.getElementById('boss-intro-overlay');
+      overlay.style.display = 'none';
+      
+      // Resume game
+      canMove = true;
+      canLook = true;
+      canAttack = true;
+      isInBattle = true;
+      
+      console.log('Battle started! isInBattle:', isInBattle, 'enemies:', enemies.length, 'canAttack:', canAttack);
+      
+      // Show battle narration after intro is dismissed (non-blocking HUD messages)
+      showNarration("The dark portal transports me to the throne of the underworld...");
+      showNarration("Everything I've done has been for this moment.");
+      showNarration("HADES! YOUR REIGN OF TERROR ENDS NOW!", "Aeneas");
+    }
+    
+    // Boss intro close button handler
+    document.getElementById('boss-intro-close-btn').addEventListener('click', closeBossIntroOverlay);
     
     // ============ COMBAT SYSTEM ============
     
