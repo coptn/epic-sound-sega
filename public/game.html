@@ -2440,24 +2440,40 @@
       fortressGroup.add(rightDoor);
       fortressDoors.right = rightDoor;
       
-      // Door decorations (bronze studs)
-      [-1, 1].forEach(side => {
-        for (let row = 0; row < 5; row++) {
-          for (let col = 0; col < 2; col++) {
-            const studGeo = new THREE.SphereGeometry(0.3, 12, 12);
-            const stud = new THREE.Mesh(studGeo, bronzeMat);
-            stud.position.set(side * (2 + col * 2.5), 5 + row * 5, 3);
-            fortressGroup.add(stud);
-          }
+      // Door decorations (bronze studs) - attached to doors so they move with them
+      // Left door studs
+      for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 2; col++) {
+          const studGeo = new THREE.SphereGeometry(0.3, 12, 12);
+          const stud = new THREE.Mesh(studGeo, bronzeMat);
+          // Position relative to door's local space (door is already translated)
+          stud.position.set(2 + col * 2.5, 5 + row * 5 - 15, 1);
+          leftDoor.add(stud);
         }
-        
-        // Door ring handles
-        const ringGeo = new THREE.TorusGeometry(0.8, 0.15, 12, 24);
-        const ring = new THREE.Mesh(ringGeo, bronzeMat);
-        ring.position.set(side * 2, 15, 3.5);
-        ring.rotation.x = Math.PI / 2;
-        fortressGroup.add(ring);
-      });
+      }
+      // Left door ring handle
+      const leftRingGeo = new THREE.TorusGeometry(0.8, 0.15, 12, 24);
+      const leftRing = new THREE.Mesh(leftRingGeo, bronzeMat);
+      leftRing.position.set(6, 0, 1.5);
+      leftRing.rotation.x = Math.PI / 2;
+      leftDoor.add(leftRing);
+      
+      // Right door studs
+      for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 2; col++) {
+          const studGeo = new THREE.SphereGeometry(0.3, 12, 12);
+          const stud = new THREE.Mesh(studGeo, bronzeMat);
+          // Position relative to door's local space (door is already translated)
+          stud.position.set(-2 - col * 2.5, 5 + row * 5 - 15, 1);
+          rightDoor.add(stud);
+        }
+      }
+      // Right door ring handle
+      const rightRingGeo = new THREE.TorusGeometry(0.8, 0.15, 12, 24);
+      const rightRing = new THREE.Mesh(rightRingGeo, bronzeMat);
+      rightRing.position.set(-6, 0, 1.5);
+      rightRing.rotation.x = Math.PI / 2;
+      rightDoor.add(rightRing);
       
       // ===== GUARDIANS (more detailed) =====
       const guardianLeft = createDetailedGuardian();
@@ -2510,10 +2526,11 @@
       sceneObjects.push(fortressGroup);
       
       // ===== WALKWAY/BRIDGE =====
-      const bridgeGeo = new THREE.BoxGeometry(12, 1, 50);
+      // Extended bridge to reach all the way to the doors (fortress is at z=-30, doors at z=-28)
+      const bridgeGeo = new THREE.BoxGeometry(12, 1, 80);
       const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xccccbb, roughness: 0.7 });
       const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
-      bridge.position.set(0, -0.5, 0);
+      bridge.position.set(0, -0.5, -15);  // Shifted forward to cover z=25 to z=-55
       bridge.receiveShadow = true;
       scene.add(bridge);
       sceneObjects.push(bridge);
@@ -4192,18 +4209,22 @@
         setTimeout(() => {
           showNarration("They study me for a moment... then slowly raise their staffs.");
           
-          // Animate staffs moving aside
-          let staffAngle = -0.5;
+          // Animate staffs moving aside - staffs start crossed over door, move outward away from door
+          // Left staff rotates from -0.5 towards more negative (outward left)
+          // Right staff rotates from +0.5 towards more positive (outward right)
+          let staffProgress = 0;
           const staffInterval = setInterval(() => {
-            staffAngle += 0.02;
+            staffProgress += 0.02;
             if (fortressGuardians.left && fortressGuardians.left.userData.staff) {
-              fortressGuardians.left.userData.staff.rotation.z = -staffAngle - 0.3;
+              // Left staff: starts at -0.5 (crossed over), moves to -1.3 (pointing left/outward)
+              fortressGuardians.left.userData.staff.rotation.z = -0.5 - staffProgress * 0.8;
             }
             if (fortressGuardians.right && fortressGuardians.right.userData.staff) {
-              fortressGuardians.right.userData.staff.rotation.z = staffAngle + 0.3;
+              // Right staff: starts at -0.5 (crossed over), moves to +0.3 (pointing right/outward)
+              fortressGuardians.right.userData.staff.rotation.z = -0.5 + staffProgress * 0.8;
             }
             
-            if (staffAngle >= 0.8) {
+            if (staffProgress >= 1.0) {
               clearInterval(staffInterval);
               
               // Now open the doors
