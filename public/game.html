@@ -2414,14 +2414,56 @@
         fortressGroup.add(merlon);
       }
       
-      // ===== DOUBLE DOORS =====
-      const doorMat = new THREE.MeshStandardMaterial({ 
-        color: 0x3a2a1a, 
-        roughness: 0.6,
-        metalness: 0.2
+      // ===== INTERIOR behind doors (neon white room) =====
+      // This is INSIDE the fortress, not poking out - positioned behind the wall
+      const interiorMat = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff, 
+        emissive: 0xffffff,
+        emissiveIntensity: 0.5
       });
       
-      // Left door
+      // Interior floor (behind the main wall)
+      const interiorFloorGeo = new THREE.BoxGeometry(16, 1, 20);
+      const interiorFloor = new THREE.Mesh(interiorFloorGeo, interiorMat);
+      interiorFloor.position.set(0, 0, -18); // Behind the wall at z=-8
+      fortressGroup.add(interiorFloor);
+      
+      // Interior back wall
+      const interiorBackGeo = new THREE.BoxGeometry(16, 35, 1);
+      const interiorBack = new THREE.Mesh(interiorBackGeo, interiorMat);
+      interiorBack.position.set(0, 17.5, -28);
+      fortressGroup.add(interiorBack);
+      
+      // Interior left wall
+      const interiorSideGeo = new THREE.BoxGeometry(1, 35, 20);
+      const interiorLeft = new THREE.Mesh(interiorSideGeo, interiorMat);
+      interiorLeft.position.set(-8, 17.5, -18);
+      fortressGroup.add(interiorLeft);
+      
+      // Interior right wall
+      const interiorRight = new THREE.Mesh(interiorSideGeo, interiorMat);
+      interiorRight.position.set(8, 17.5, -18);
+      fortressGroup.add(interiorRight);
+      
+      // Interior ceiling
+      const interiorCeilingGeo = new THREE.BoxGeometry(16, 1, 20);
+      const interiorCeiling = new THREE.Mesh(interiorCeilingGeo, interiorMat);
+      interiorCeiling.position.set(0, 35, -18);
+      fortressGroup.add(interiorCeiling);
+      
+      // Interior lights
+      const interiorLight = new THREE.PointLight(0xffffff, 2, 40);
+      interiorLight.position.set(0, 20, -18);
+      fortressGroup.add(interiorLight);
+      
+      // ===== DOUBLE DOORS =====
+      const doorMat = new THREE.MeshStandardMaterial({ 
+        color: 0x5a3d1a,  // Warm brown wood color
+        roughness: 0.5,
+        metalness: 0.1
+      });
+      
+      // Left door - positioned at the door opening (z=2 relative to fortress at z=-30 = world z=-28)
       const doorGeo = new THREE.BoxGeometry(8, 30, 1.5);
       const leftDoor = new THREE.Mesh(doorGeo, doorMat);
       leftDoor.position.set(-4, 15, 2);
@@ -2432,7 +2474,7 @@
       fortressDoors.left = leftDoor;
       
       // Right door
-      const rightDoor = new THREE.Mesh(doorGeo, doorMat);
+      const rightDoor = new THREE.Mesh(doorGeo.clone(), doorMat);
       rightDoor.position.set(4, 15, 2);
       // Set pivot point at the right edge for hinge rotation
       rightDoor.geometry.translate(-4, 0, 0);
@@ -2440,21 +2482,21 @@
       fortressGroup.add(rightDoor);
       fortressDoors.right = rightDoor;
       
-      // Door decorations (bronze studs) - attached to doors so they move with them
+      // Door decorations (bronze studs) - flush on door surface (door is 1.5 thick, so 0.76 puts studs on surface)
       // Left door studs
       for (let row = 0; row < 5; row++) {
         for (let col = 0; col < 2; col++) {
           const studGeo = new THREE.SphereGeometry(0.3, 12, 12);
           const stud = new THREE.Mesh(studGeo, bronzeMat);
-          // Position relative to door's local space (door is already translated)
-          stud.position.set(2 + col * 2.5, 5 + row * 5 - 15, 1);
+          // Position relative to door's local space - z=0.76 places them on the front surface
+          stud.position.set(2 + col * 2.5, 5 + row * 5 - 15, 0.76);
           leftDoor.add(stud);
         }
       }
-      // Left door ring handle
+      // Left door ring handle - flush on surface
       const leftRingGeo = new THREE.TorusGeometry(0.8, 0.15, 12, 24);
       const leftRing = new THREE.Mesh(leftRingGeo, bronzeMat);
-      leftRing.position.set(6, 0, 1.5);
+      leftRing.position.set(6, 0, 0.9);
       leftRing.rotation.x = Math.PI / 2;
       leftDoor.add(leftRing);
       
@@ -2463,15 +2505,15 @@
         for (let col = 0; col < 2; col++) {
           const studGeo = new THREE.SphereGeometry(0.3, 12, 12);
           const stud = new THREE.Mesh(studGeo, bronzeMat);
-          // Position relative to door's local space (door is already translated)
-          stud.position.set(-2 - col * 2.5, 5 + row * 5 - 15, 1);
+          // Position relative to door's local space
+          stud.position.set(-2 - col * 2.5, 5 + row * 5 - 15, 0.76);
           rightDoor.add(stud);
         }
       }
       // Right door ring handle
       const rightRingGeo = new THREE.TorusGeometry(0.8, 0.15, 12, 24);
       const rightRing = new THREE.Mesh(rightRingGeo, bronzeMat);
-      rightRing.position.set(-6, 0, 1.5);
+      rightRing.position.set(-6, 0, 0.9);
       rightRing.rotation.x = Math.PI / 2;
       rightDoor.add(rightRing);
       
@@ -2479,12 +2521,16 @@
       const guardianLeft = createDetailedGuardian();
       guardianLeft.position.set(-6, 0, 8);
       guardianLeft.rotation.y = 0.2;
+      // Left staff rotated towards center (positive z rotation = leaning right towards door)
+      guardianLeft.userData.staff.rotation.z = 0.6;
       fortressGroup.add(guardianLeft);
       fortressGuardians.left = guardianLeft;
       
       const guardianRight = createDetailedGuardian();
       guardianRight.position.set(6, 0, 8);
       guardianRight.rotation.y = -0.2;
+      // Right staff rotated towards center (negative z rotation = leaning left towards door)
+      guardianRight.userData.staff.rotation.z = -0.6;
       fortressGroup.add(guardianRight);
       fortressGuardians.right = guardianRight;
       
@@ -2729,7 +2775,8 @@
       staffGroup.add(staffLight);
       
       staffGroup.position.set(0.5, 0, 0.4);
-      staffGroup.rotation.z = -0.5; // Diagonal position (will animate)
+      // Staff will be positioned by the guardian setup (left/right need opposite rotations)
+      staffGroup.rotation.z = 0; // Will be set when added to left/right guardian
       staffGroup.rotation.x = 0.3;
       group.add(staffGroup);
       group.userData.staff = staffGroup;
@@ -4209,19 +4256,19 @@
         setTimeout(() => {
           showNarration("They study me for a moment... then slowly raise their staffs.");
           
-          // Animate staffs moving aside - staffs start crossed over door, move outward away from door
-          // Left staff rotates from -0.5 towards more negative (outward left)
-          // Right staff rotates from +0.5 towards more positive (outward right)
+          // Animate staffs moving AWAY from the door (outward)
+          // Left staff starts leaning right (0.6), moves to leaning left (-0.6) = away from door
+          // Right staff starts leaning left (-0.6), moves to leaning right (0.6) = away from door
           let staffProgress = 0;
           const staffInterval = setInterval(() => {
             staffProgress += 0.02;
             if (fortressGuardians.left && fortressGuardians.left.userData.staff) {
-              // Left staff: starts at -0.5 (crossed over), moves to -1.3 (pointing left/outward)
-              fortressGuardians.left.userData.staff.rotation.z = -0.5 - staffProgress * 0.8;
+              // Left staff: starts at 0.6 (leaning towards door), moves to -0.6 (leaning away)
+              fortressGuardians.left.userData.staff.rotation.z = 0.6 - staffProgress * 1.2;
             }
             if (fortressGuardians.right && fortressGuardians.right.userData.staff) {
-              // Right staff: starts at -0.5 (crossed over), moves to +0.3 (pointing right/outward)
-              fortressGuardians.right.userData.staff.rotation.z = -0.5 + staffProgress * 0.8;
+              // Right staff: starts at -0.6 (leaning towards door), moves to 0.6 (leaning away)
+              fortressGuardians.right.userData.staff.rotation.z = -0.6 + staffProgress * 1.2;
             }
             
             if (staffProgress >= 1.0) {
